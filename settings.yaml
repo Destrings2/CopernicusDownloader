@@ -1,0 +1,19 @@
+# Your Copernicus Open Access Hub username and password
+username: <username>
+password: <password>
+# The connection string for the database
+db_conn: user:pass@/copernicus
+# If true, builds the database of required files to download using the query_settings
+build_database: false
+download: true
+request: false
+download_dir: /Users/user/Downloads
+# How many parallel downloads to run, note Copernicus imposes a quota
+parallel_downloads: 2
+query_settings:
+  # A csv without headers containing the latitude and longitude in the first and second column of the points of interest
+  points_file: locations.csv
+  # The start date of the data to download
+  start_date: 2019-01-01T00:00:00Z
+  # The end date of the data to download
+  end_date: 2019-12-31T23:59:00Z
