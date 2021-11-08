@@ -51,3 +51,8 @@ func (c *Connection) SetRequested(uuid string) error {
 	_, err := c.Database.Exec("UPDATE `file` SET `requestedDate` = NOW() WHERE `uuid` = ?", uuid)
 	return err
 }
+
+func (c *Connection) SetChecked(uuid string) error {
+	_, err := c.Database.Exec("UPDATE `file` SET `checkedDate` = NOW() WHERE `uuid` = ?", uuid)
+	return err
+}

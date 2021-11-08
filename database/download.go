@@ -28,7 +28,7 @@ func StartDownloadChannel(ch chan api.DownloadRequest, dbConn string, client *ap
 }
 
 func (c *Connection) DownloadFiles(path string, client *api.CopernicusClient, downloadChan chan<- api.DownloadRequest, allowRequest bool) {
-	query := "SELECT uuid, title, online, requestedDate, priority, downloaded FROM file WHERE lockedBy IS NULL AND downloaded = FALSE AND (requestedDate IS NULL OR requestedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE) OR online = TRUE) ORDER BY priority DESC, online DESC, requestedDate DESC, RAND() DESC LIMIT 10;"
+	query := "SELECT uuid, title, online, requestedDate, priority, downloaded FROM file WHERE lockedBy IS NULL AND downloaded = FALSE AND (requestedDate IS NULL OR checkedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE) OR online = TRUE) ORDER BY priority DESC, online DESC, checkedDate ASC, RAND() DESC LIMIT 10;"
 
 	results, err, _ := c.Query(query)
 	if err != nil {
@@ -43,7 +43,7 @@ func (c *Connection) DownloadFiles(path string, client *api.CopernicusClient, do
 		onlineFilesQuery, _, _ := c.Query("SELECT COUNT(uuid) count FROM file WHERE online = TRUE AND downloaded = FALSE AND lockedBy IS NULL")
 		noOnlineFiles := string(onlineFilesQuery[0]["count"].([]byte)) == "0"
 
-		requestedFilesQuery, _, _ := c.Query("SELECT COUNT(uuid) count FROM file WHERE online = FALSE AND lockedBy IS NULL AND requestedDate IS NOT NULL AND requestedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE)")
+		requestedFilesQuery, _, _ := c.Query("SELECT COUNT(uuid) count FROM file WHERE online = FALSE AND lockedBy IS NULL AND requestedDate IS NOT NULL AND checkedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE)")
 		noRequestedFiles := string(requestedFilesQuery[0]["count"].([]byte)) == "0"
 
 		if noOnlineFiles && noRequestedFiles {
@@ -63,6 +63,7 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 	title := string(row["title"].([]byte))
 	online := string(row["online"].([]byte)) == "1"
 	requestedDateStr := row["requestedDate"]
+	checkedDateStr := row["checkedDate"]
 
 	if online {
 		log.Println(fmt.Sprintf("File %s is online. Requesting its download", title))
@@ -96,10 +97,17 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 	} else {
 		log.Println(fmt.Sprintf("Checking if requested file %s is online", title))
 		entry := c.UpdateByUUID(uuid, client)
-		c.SetRequested(uuid)
 
 		if entry.Properties.Online {
 			c.Execute("UPDATE file SET priority = ? WHERE uuid = ?", 3, uuid)
+		} else {
+			checkedDate, _ := time.Parse("2006-01-02 15:04:05", string(checkedDateStr.([]byte)))
+			// If the file has not been uploaded in 3 hours, delete the request
+			if checkedDate.Before(time.Now().Add(-time.Hour * 3)) {
+				c.Execute("UPDATE file SET requestedDate = ?, checkedDate = ? WHERE uuid = ?", nil, nil, uuid)
+			}
 		}
+
+		c.SetChecked(uuid)
 	}
 }

@@ -16,6 +16,7 @@ create table file
     size                bigint        not null,
     online              tinyint(1)    not null,
     requestedDate       datetime      null,
+    checkedDate         datetime      null,
     downloaded          tinyint(1)    not null,
     lockedBy            varchar(255)  null,
     localPath           varchar(255)  null,
