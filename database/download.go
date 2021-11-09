@@ -101,10 +101,12 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 		if entry.Properties.Online {
 			c.Execute("UPDATE file SET priority = ? WHERE uuid = ?", 3, uuid)
 		} else {
-			checkedDate, _ := time.Parse("2006-01-02 15:04:05", string(checkedDateStr.([]byte)))
-			// If the file has not been uploaded in 3 hours, delete the request
-			if checkedDate.Before(time.Now().Add(-time.Hour * 3)) {
-				c.Execute("UPDATE file SET requestedDate = ?, checkedDate = ? WHERE uuid = ?", nil, nil, uuid)
+			if checkedDateStr != nil {
+				checkedDate, _ := time.Parse("2006-01-02 15:04:05", string(checkedDateStr.([]byte)))
+				// If the file has not been uploaded in 3 hours, delete the request
+				if checkedDate.Before(time.Now().Add(-time.Hour * 3)) {
+					c.Execute("UPDATE file SET requestedDate = ?, checkedDate = ? WHERE uuid = ?", nil, nil, uuid)
+				}
 			}
 		}
 
