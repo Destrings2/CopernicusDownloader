@@ -41,6 +41,7 @@ func (c *Connection) BuildDatabase(pointsFile string, start time.Time, end time.
 		builder := api.NewQueryBuilder()
 		builder.And(api.OrGroup(pointSlice...))
 		builder.And(api.SensingRange(start, end))
+		//Platform and product type
 		builder.And(api.PlatformName("Sentinel-2"))
 		builder.And(api.ProductType("S2MSI1C"))
 
