@@ -36,6 +36,14 @@ func (e CantRequestOnlineError) Error() string {
 	return e.Err
 }
 
+type TooManyRequestsError struct {
+	Err string
+}
+
+func (e TooManyRequestsError) Error() string {
+	return e.Err
+}
+
 type DownloadRequest struct {
 	Title string
 	Path  string
@@ -92,6 +100,8 @@ func (cc *CopernicusClient) Request(uuid string) error {
 		return CantRequestOnlineError{"File is actually online"}
 	} else if response.StatusCode == 403 {
 		return QuotaExceededError{"Quota exceeded at " + time.Now().Format(time.RFC3339)}
+	} else if response.StatusCode == 429 {
+		return TooManyRequestsError{"Too many requests " + time.Now().Format(time.RFC3339)}
 	} else {
 		return OtherError{fmt.Sprintf("Status code %d at  %s", response.StatusCode, time.Now().Format(time.RFC3339))}
 	}

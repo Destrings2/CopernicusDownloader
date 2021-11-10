@@ -89,6 +89,9 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 			case api.CantRequestOnlineError:
 				//File is actually online, update it
 				c.UpdateByUUID(uuid, client)
+			case api.TooManyRequestsError:
+				log.Println(err.Error())
+				time.Sleep(time.Second * 1)
 			case api.OtherError:
 				log.Println(err.Error())
 			}
@@ -105,6 +108,7 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 				checkedDate, _ := time.Parse("2006-01-02 15:04:05", string(checkedDateStr.([]byte)))
 				// If the file has not been uploaded in 3 hours, delete the request
 				if checkedDate.Before(time.Now().Add(-time.Hour * 3)) {
+					log.Println(fmt.Sprintf("More than 3 hours since request off %s, setting it up for requesting again", title))
 					c.Execute("UPDATE file SET requestedDate = ?, checkedDate = ? WHERE uuid = ?", nil, nil, uuid)
 				}
 			}
