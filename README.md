@@ -5,7 +5,7 @@ all the data that contains any of the coordinates. It does so by first building 
 and then requesting the data from the Copernicus Open Access Hub. If the file is not online it handles the request to the
 historical archives and the quota limit.
 
-##How to use it?
+## How to use it?
 
 Run the command line with the path to the settings file. A sample settings file is provided in the folder as `settings.yaml`
 
