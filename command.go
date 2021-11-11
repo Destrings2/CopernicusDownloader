@@ -31,23 +31,25 @@ func main() {
 		<-c
 		cleanup(con, 0)
 	}()
-	client := api.NewCopernicusClient(s.Username, s.Password)
+	queryClient := api.NewCopernicusClient(s.Username, s.Password)
 
 	if s.BuildDatabase {
-		con.BuildDatabase(s.QuerySettings.PointsFile, s.QuerySettings.StartDate, s.QuerySettings.EndDate, client)
+		con.BuildDatabase(s.QuerySettings.PointsFile, s.QuerySettings.StartDate, s.QuerySettings.EndDate, queryClient)
 	}
 
 	defer cleanup(con, 1)
 
 	if s.Download {
-		ch := client.OpenDownloadChannel()
+		downloadClient := api.NewCopernicusClient(s.Username, s.Password)
+
+		ch := downloadClient.OpenDownloadChannel()
 
 		for i := 0; i < s.ParallelDownloads; i++ {
-			go database.StartDownloadChannel(ch, s.DbConn, client)
+			go database.StartDownloadChannel(ch, s.DbConn, downloadClient)
 		}
 
 		for {
-			con.DownloadFiles(s.DownloadDir, client, ch, s.Request)
+			con.RequestDownloadFiles(s.DownloadDir, queryClient, ch, s.Request)
 		}
 	}
 }

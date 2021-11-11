@@ -27,7 +27,7 @@ func StartDownloadChannel(ch chan api.DownloadRequest, dbConn string, client *ap
 	}
 }
 
-func (c *Connection) DownloadFiles(path string, client *api.CopernicusClient, downloadChan chan<- api.DownloadRequest, allowRequest bool) {
+func (c *Connection) RequestDownloadFiles(path string, client *api.CopernicusClient, downloadChan chan<- api.DownloadRequest, allowRequest bool) {
 	query := "SELECT uuid, title, online, requestedDate, priority, downloaded FROM file WHERE lockedBy IS NULL AND downloaded = FALSE AND (requestedDate IS NULL OR checkedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE) OR online = TRUE) ORDER BY priority DESC, online DESC, checkedDate ASC, RAND() DESC LIMIT 10;"
 
 	results, err, _ := c.Query(query)
@@ -71,7 +71,7 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 		downloadChan <- api.DownloadRequest{Title: title, Path: path, Uuid: uuid}
 	} else if allowRequest && requestedDateStr == nil {
 		// Do not request new files if we know the quota is exceeded
-		if client.RequestQuotaExceeded && !client.RequestQuotaExceededAt.Before(time.Now().Add(-time.Minute*10)) {
+		if client.RequestQuotaExceeded && !client.RequestQuotaExceededAt.After(time.Now().Add(-time.Minute*10)) {
 			client.RequestQuotaExceeded = false
 		} else if client.RequestQuotaExceeded {
 			return
@@ -91,12 +91,13 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 				c.UpdateByUUID(uuid, client)
 			case api.TooManyRequestsError:
 				log.Println(err.Error())
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Second * 10)
 			case api.OtherError:
 				log.Println(err.Error())
 			}
-			c.SetRequested(uuid)
+			return
 		}
+		c.SetRequested(uuid)
 	} else {
 		log.Println(fmt.Sprintf("Checking if requested file %s is online", title))
 		entry := c.UpdateByUUID(uuid, client)
@@ -107,13 +108,12 @@ func (c *Connection) ProcessDownload(row map[string]interface{}, path string, cl
 			if checkedDateStr != nil {
 				checkedDate, _ := time.Parse("2006-01-02 15:04:05", string(checkedDateStr.([]byte)))
 				// If the file has not been uploaded in 3 hours, delete the request
-				if checkedDate.Before(time.Now().Add(-time.Hour * 3)) {
+				if checkedDate.After(time.Now().Add(-time.Hour * 3)) {
 					log.Println(fmt.Sprintf("More than 3 hours since request off %s, setting it up for requesting again", title))
 					c.Execute("UPDATE file SET requestedDate = ?, checkedDate = ? WHERE uuid = ?", nil, nil, uuid)
 				}
 			}
 		}
-
 		c.SetChecked(uuid)
 	}
 }
