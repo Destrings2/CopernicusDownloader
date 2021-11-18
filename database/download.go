@@ -29,15 +29,9 @@ func StartDownloadChannel(ch chan api.DownloadRequest, dbConn string, client *ap
 
 func (c *Connection) RequestDownloadFiles(path string, client *api.CopernicusClient, downloadChan chan<- api.DownloadRequest, allowRequest bool) {
 	toDownloadQuery := "SELECT uuid, title, online, requestedDate, checkedDate, priority, downloaded FROM file WHERE lockedBy IS NULL AND downloaded = FALSE AND online = TRUE ORDER BY priority DESC, online DESC, checkedDate DESC, RAND() DESC LIMIT 1;"
-	toCheckQuery := "SELECT uuid, title, online, requestedDate, checkedDate, priority, downloaded FROM file WHERE requestedDate IS NOT NULL AND downloaded = FALSE AND checkedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE) ORDER BY priority DESC, online DESC, checkedDate DESC, RAND() DESC LIMIT 10;"
-	toRequestQuery := "SELECT uuid, title, online, requestedDate, checkedDate, priority, downloaded FROM file WHERE requestedDate IS NULL AND downloaded = FALSE ORDER BY priority DESC, online DESC, checkedDate DESC, RAND() DESC LIMIT 10;"
+	toCheckQuery := "SELECT uuid, title, online, requestedDate, checkedDate, priority, downloaded FROM file WHERE requestedDate IS NOT NULL AND downloaded = FALSE AND checkedDate IS NOT NULL AND checkedDate < DATE_SUB(NOW(), INTERVAL 10 MINUTE) ORDER BY priority DESC, online DESC, checkedDate DESC, RAND() DESC LIMIT 10;"
 
 	toDownload, err, _ := c.Query(toDownloadQuery)
-	if err != nil {
-		log.Fatalf("Error while querying database: %s", err.Error())
-	}
-
-	toRequest, err, _ := c.Query(toRequestQuery)
 	if err != nil {
 		log.Fatalf("Error while querying database: %s", err.Error())
 	}
@@ -65,6 +59,13 @@ func (c *Connection) RequestDownloadFiles(path string, client *api.CopernicusCli
 	}
 
 	if allowRequest {
+		toRequestQuery := "SELECT uuid, title, online, requestedDate, checkedDate, priority, downloaded FROM file WHERE requestedDate IS NULL AND downloaded = FALSE ORDER BY priority DESC, online DESC, checkedDate DESC, RAND() DESC LIMIT 10;"
+
+		toRequest, err, _ := c.Query(toRequestQuery)
+		if err != nil {
+			log.Fatalf("Error while querying database: %s", err.Error())
+		}
+
 		for _, row := range toRequest {
 			c.ProcessRequest(row, client)
 		}
